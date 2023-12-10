@@ -1,3 +1,5 @@
+// ignore_for_file: avoid_print
+
 import 'package:flutter/material.dart';
 
 class TodoItem {
@@ -17,6 +19,38 @@ class MyHomePage extends StatefulWidget {
 class _MyHomePageState extends State<MyHomePage> {
   // ignore: prefer_final_fields
   List<TodoItem> todos = [];
+  TextEditingController searchController = TextEditingController();
+  List<TodoItem> foundtodos = [];
+
+  @override
+  void initState() {
+    foundtodos = todos;
+    super.initState();
+  }
+
+  Color dayBackgroundColor = const Color.fromARGB(255, 166, 106, 15);
+  Color dayTextColor = const Color.fromARGB(255, 255, 181, 101);
+
+  Color nightBackgroundColor = Colors.brown;
+  Color nightTextColor = Colors.white;
+
+  final ThemeData kDayTheme = ThemeData(
+    brightness: Brightness.light,
+    primarySwatch: Colors.yellow,
+  );
+
+  final ThemeData kNightTheme = ThemeData(
+    brightness: Brightness.dark,
+    hintColor: Colors.brown,
+  );
+
+  bool isNightMode = false;
+
+  void toggleTheme() {
+    setState(() {
+      isNightMode = !isNightMode;
+    });
+  }
 
   void addTask() {
     showDialog(
@@ -61,38 +95,145 @@ class _MyHomePageState extends State<MyHomePage> {
     });
   }
 
+  Widget searchBox() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 5),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(40),
+      ),
+      child: TextField(
+        controller: searchController,
+        onChanged: (value) {
+          searcher(value);
+        },
+        decoration: const InputDecoration(
+            contentPadding: EdgeInsets.all(0),
+            prefixIcon: Icon(
+              Icons.search,
+              color: Colors.black,
+              size: 20,
+            ),
+            prefixIconConstraints: BoxConstraints(
+              maxHeight: 20,
+              minWidth: 25,
+            ),
+            border: InputBorder.none,
+            hintText: 'Search',
+            hintStyle: TextStyle(color: Colors.grey)),
+      ),
+    );
+  }
+
+  void searcher(String searchingword) {
+    List<TodoItem> results = [];
+    if (searchingword.isEmpty) {
+      results = List<TodoItem>.from(todos);
+    } else {
+      results = todos
+          .where((todo) =>
+              todo.title.toLowerCase().contains(searchingword.toLowerCase()))
+          .toList();
+      setState(() {
+        foundtodos = results;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color.fromARGB(255, 150, 95, 75),
       appBar: AppBar(
-        title: const Text('My To-Do Lists'),
-        backgroundColor: Colors.brown,
+        elevation: 0,
+        title:
+            Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+          const Icon(
+            Icons.menu,
+            size: 30,
+          ),
+          SizedBox(
+            height: 40,
+            width: 40,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(40),
+              child: Image.asset('assets/IMan.jpg'),
+            ),
+          )
+        ]),
       ),
-      body: ListView.builder(
-        itemCount: todos.length,
-        itemBuilder: (BuildContext context, int index) {
-          return Dismissible(
-            key: Key(todos[index].title),
-            background: Container(
-              color: const Color.fromARGB(255, 255, 212, 153),
-              alignment: Alignment.centerRight,
-              padding: const EdgeInsetsDirectional.all(8.0),
-              child: const Icon(Icons.delete, color: Colors.white),
+      body: Column(
+        children: [
+          const Text('All of my To-Dos',
+              style: TextStyle(
+                  fontSize: 30,
+                  fontWeight: FontWeight.w500,
+                  color: Color.fromARGB(255, 246, 194, 135))),
+          searchBox(),
+          Expanded(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(20),
+              child: ListView.builder(
+                itemCount: todos.length,
+                itemBuilder: (BuildContext context, int index) {
+                  return ClipRRect(
+                    borderRadius: BorderRadius.circular(20),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          vertical: 5, horizontal: 20),
+                      margin: const EdgeInsets.symmetric(vertical: 10),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(40),
+                      ),
+                      child: Dismissible(
+                        key: Key(todos[index].title),
+                        background: Container(
+                          color: const Color.fromARGB(255, 88, 52, 2),
+                          alignment: Alignment.centerRight,
+                          padding: const EdgeInsetsDirectional.all(10.0),
+                          child: const Icon(Icons.delete,
+                              color: Color.fromARGB(255, 46, 25, 12)),
+                        ),
+                        onDismissed: (direction) {
+                          deleteTask(index);
+                          print('Task Deleted');
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 20, vertical: 3),
+                          margin: const EdgeInsets.only(bottom: 10, top: 10),
+                          color: Colors.white,
+                          child: CheckboxListTile(
+                            title: Text(
+                              todos[index].title,
+                              style: TextStyle(
+                                decoration: todos[index].isDone
+                                    ? TextDecoration.lineThrough
+                                    : null,
+                              ),
+                            ),
+                            value: todos[index].isDone,
+                            onChanged: (bool? value) {
+                              setState(() {
+                                todos[index].isDone = value ?? false;
+                              });
+                              // ignore: unused_label
+                              onTap:
+                              () {
+                                print('Clicked on a Todo task');
+                              };
+                            },
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
             ),
-            onDismissed: (direction) {
-              deleteTask(index);
-            },
-            child: CheckboxListTile(
-              title: Text(todos[index].title),
-              value: todos[index].isDone,
-              onChanged: (bool? value) {
-                setState(() {
-                  todos[index].isDone = value ?? false;
-                });
-              },
-            ),
-          );
-        },
+          ),
+        ],
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: addTask,
