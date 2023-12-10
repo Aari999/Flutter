@@ -19,29 +19,29 @@ class MyHomePage extends StatefulWidget {
 class _MyHomePageState extends State<MyHomePage> {
   // ignore: prefer_final_fields
   List<TodoItem> todos = [];
-  List<TodoItem> foundtodos = [];
   TextEditingController searchController = TextEditingController();
+  List<TodoItem> foundtodos = [];
 
   @override
   void initState() {
-    foundtodos = List<TodoItem>.from(todos);
+    foundtodos = todos;
     super.initState();
   }
 
   Color dayBackgroundColor = const Color.fromARGB(255, 166, 106, 15);
   Color dayTextColor = const Color.fromARGB(255, 255, 181, 101);
 
-  Color nightBackgroundColor = Colors.black;
+  Color nightBackgroundColor = Colors.brown;
   Color nightTextColor = Colors.white;
 
   final ThemeData kDayTheme = ThemeData(
     brightness: Brightness.light,
-    primarySwatch: Colors.blue,
+    primarySwatch: Colors.yellow,
   );
 
   final ThemeData kNightTheme = ThemeData(
     brightness: Brightness.dark,
-    hintColor: Colors.green,
+    hintColor: Colors.brown,
   );
 
   bool isNightMode = false;
@@ -97,7 +97,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
   Widget searchBox() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 5),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(40),
@@ -134,10 +134,10 @@ class _MyHomePageState extends State<MyHomePage> {
           .where((todo) =>
               todo.title.toLowerCase().contains(searchingword.toLowerCase()))
           .toList();
+      setState(() {
+        foundtodos = results;
+      });
     }
-    setState(() {
-      foundtodos = results;
-    });
   }
 
   @override
@@ -157,7 +157,7 @@ class _MyHomePageState extends State<MyHomePage> {
             width: 40,
             child: ClipRRect(
               borderRadius: BorderRadius.circular(40),
-              child: Image.asset('assets/images/IMan.jpg'),
+              child: Image.asset('assets/IMan.jpg'),
             ),
           )
         ]),
@@ -176,42 +176,56 @@ class _MyHomePageState extends State<MyHomePage> {
               child: ListView.builder(
                 itemCount: todos.length,
                 itemBuilder: (BuildContext context, int index) {
-                  return Dismissible(
-                    key: Key(todos[index].title),
-                    background: Container(
-                      color: const Color.fromARGB(255, 88, 52, 2),
-                      alignment: Alignment.centerRight,
-                      padding: const EdgeInsetsDirectional.all(20.0),
-                      child: const Icon(Icons.delete,
-                          color: Color.fromARGB(255, 46, 25, 12)),
-                    ),
-                    onDismissed: (direction) {
-                      deleteTask(index);
-                      print('Task Deleted');
-                    },
+                  return ClipRRect(
+                    borderRadius: BorderRadius.circular(20),
                     child: Container(
-                      margin: const EdgeInsets.only(bottom: 10),
-                      color: Colors.white,
-                      child: CheckboxListTile(
-                        title: Text(
-                          todos[index].title,
-                          style: TextStyle(
-                            decoration: todos[index].isDone
-                                ? TextDecoration.lineThrough
-                                : null,
+                      padding: const EdgeInsets.symmetric(
+                          vertical: 5, horizontal: 20),
+                      margin: const EdgeInsets.symmetric(vertical: 10),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(40),
+                      ),
+                      child: Dismissible(
+                        key: Key(todos[index].title),
+                        background: Container(
+                          color: const Color.fromARGB(255, 88, 52, 2),
+                          alignment: Alignment.centerRight,
+                          padding: const EdgeInsetsDirectional.all(10.0),
+                          child: const Icon(Icons.delete,
+                              color: Color.fromARGB(255, 46, 25, 12)),
+                        ),
+                        onDismissed: (direction) {
+                          deleteTask(index);
+                          print('Task Deleted');
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 20, vertical: 3),
+                          margin: const EdgeInsets.only(bottom: 10, top: 10),
+                          color: Colors.white,
+                          child: CheckboxListTile(
+                            title: Text(
+                              todos[index].title,
+                              style: TextStyle(
+                                decoration: todos[index].isDone
+                                    ? TextDecoration.lineThrough
+                                    : null,
+                              ),
+                            ),
+                            value: todos[index].isDone,
+                            onChanged: (bool? value) {
+                              setState(() {
+                                todos[index].isDone = value ?? false;
+                              });
+                              // ignore: unused_label
+                              onTap:
+                              () {
+                                print('Clicked on a Todo task');
+                              };
+                            },
                           ),
                         ),
-                        value: todos[index].isDone,
-                        onChanged: (bool? value) {
-                          setState(() {
-                            todos[index].isDone = value ?? false;
-                          });
-                          // ignore: unused_label
-                          onTap:
-                          () {
-                            print('Clicked on a Todo task');
-                          };
-                        },
                       ),
                     ),
                   );
