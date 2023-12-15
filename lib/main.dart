@@ -1,5 +1,8 @@
+// ignore_for_file: unused_import
+
 import 'package:flutter/material.dart';
 import 'package:todo/home.dart';
+import 'package:todo/filter.dart';
 
 // ignore: prefer_const_constructors
 void main() => runApp(MyApp());
@@ -28,8 +31,7 @@ class _MyAppState extends State<MyApp> {
   Widget build(BuildContext context) {
     return MaterialApp(
       theme: isNightMode ? kNightTheme : kDayTheme,
-      // ignore: prefer_const_constructors
-      color: Color.fromARGB(255, 184, 111, 197),
+      color: const Color.fromARGB(255, 184, 111, 197),
       debugShowCheckedModeBanner: false,
       title: 'To-Do List',
       // ignore: prefer_const_constructors

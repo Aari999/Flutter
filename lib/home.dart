@@ -1,236 +1,344 @@
-// ignore_for_file: avoid_print
+// ignore_for_file: sort_child_properties_last, library_private_types_in_public_api, duplicate_import, avoid_print
 
 import 'package:flutter/material.dart';
+import 'package:datetime_picker_formfield/datetime_picker_formfield.dart';
+import 'package:intl/intl.dart';
+import 'package:todo/filter.dart';
+import 'filter.dart';
+
+enum Priority { high, medium, low }
+
+enum Tag { home, work, school, personal }
 
 class TodoItem {
   String title;
+  int index;
+  DateTime? dueDate;
+  Priority? priority;
+  Tag? tag;
   bool isDone;
-  TodoItem({required this.title, this.isDone = false});
+
+  TodoItem({
+    required this.title,
+    //required this.index,
+    this.dueDate,
+    this.priority = Priority.medium,
+    this.tag = Tag.personal,
+    this.isDone = false,
+    this.index = 0,
+  });
+
+  String get priorityText => priority.toString().split('.').last.toUpperCase();
+  String get tagText => tag.toString().split('.').last.toUpperCase();
 }
 
 class MyHomePage extends StatefulWidget {
   const MyHomePage({Key? key}) : super(key: key);
 
   @override
-  // ignore: library_private_types_in_public_api
   _MyHomePageState createState() => _MyHomePageState();
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  // ignore: prefer_final_fields
   List<TodoItem> todos = [];
   TextEditingController searchController = TextEditingController();
-  List<TodoItem> foundtodos = [];
+  List<TodoItem> filteredTodos = [];
+  TextEditingController dueDateController = TextEditingController();
+  TextEditingController priorityController = TextEditingController();
+  TextEditingController tagController = TextEditingController();
+
+  Color appBarColor = const Color.fromARGB(255, 145, 249, 255);
+
+  get index => null;
 
   @override
   void initState() {
-    foundtodos = todos;
+    filteredTodos = todos;
     super.initState();
   }
 
-  Color dayBackgroundColor = const Color.fromARGB(255, 166, 106, 15);
-  Color dayTextColor = const Color.fromARGB(255, 255, 181, 101);
-
-  Color nightBackgroundColor = Colors.brown;
-  Color nightTextColor = Colors.white;
-
-  final ThemeData kDayTheme = ThemeData(
-    brightness: Brightness.light,
-    primarySwatch: Colors.yellow,
-  );
-
-  final ThemeData kNightTheme = ThemeData(
-    brightness: Brightness.dark,
-    hintColor: Colors.brown,
-  );
-
-  bool isNightMode = false;
-
-  void toggleTheme() {
+  bool isSearchOpen = false;
+  void toggleSearch() {
     setState(() {
-      isNightMode = !isNightMode;
+      isSearchOpen = !isSearchOpen;
     });
   }
 
-  void addTask() {
-    showDialog(
+  void filterTodos(
+      String search, DateTime? dueDate, Priority? priority, Tag? tag) {
+    print(
+        'Filtering with search: $search, dueDate: $dueDate, priority: $priority, tag: $tag');
+    setState(() {
+      filteredTodos = todos.where((todo) {
+        final lowerCaseSearch = search.toLowerCase();
+        final lowerCaseTitle = todo.title.toLowerCase();
+
+        return lowerCaseTitle.contains(lowerCaseSearch) &&
+            (dueDate == null ||
+                (todo.dueDate != null && todo.dueDate!.isBefore(dueDate))) &&
+            (priority == null || todo.priority == priority) &&
+            (tag == null || todo.tag == tag);
+      }).toList();
+    });
+  }
+
+  void addTask() async {
+    String title = '';
+    DateTime? dueDate;
+    Priority priority = Priority.medium;
+    Tag tag = Tag.personal;
+
+    await showDialog(
       context: context,
-      builder: (BuildContext context) {
-        String newTodo = "";
-        return AlertDialog(
-          title: const Text('Add Z Task'),
-          content: TextField(
-            onChanged: (String value) {
-              newTodo = value;
-            },
-            decoration: const InputDecoration(
-              labelText: 'Enter',
+      builder: (context) => AlertDialog(
+        title: const Text('Add Task'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              decoration: const InputDecoration(labelText: 'Title'),
+              onChanged: (value) => setState(() => title = value),
             ),
-          ),
-          actions: <Widget>[
-            TextButton(
-              child: const Text('Cancel'),
-              onPressed: () {
-                Navigator.pop(context);
+            DateTimeField(
+              controller: dueDateController,
+              decoration: const InputDecoration(labelText: 'Due Date'),
+              format: DateFormat('yyyy-MM-dd'),
+              onChanged: (value) => setState(() => dueDate = value),
+              onShowPicker:
+                  (BuildContext context, DateTime? currentValue) async {
+                final pickedDate = await showDatePicker(
+                  context: context,
+                  initialDate: currentValue ?? DateTime.now(),
+                  firstDate: DateTime(2000),
+                  lastDate: DateTime(2100),
+                );
+                return pickedDate ?? DateTime.now();
               },
             ),
-            TextButton(
-              child: const Text('Add'),
-              onPressed: () {
-                setState(() {
-                  todos.add(TodoItem(title: newTodo));
-                });
-                Navigator.pop(context);
-              },
+            DropdownButtonFormField(
+              decoration: const InputDecoration(labelText: 'Priority'),
+              value: priority,
+              items: Priority.values
+                  .map((p) => DropdownMenuItem(
+                        child: Text(p.toString().split('.').last.toUpperCase()),
+                        value: p,
+                      ))
+                  .toList(),
+              onChanged: (value) => setState(() => priority = value!),
+            ),
+            DropdownButtonFormField(
+              decoration: const InputDecoration(labelText: 'Tag'),
+              value: tag,
+              items: Tag.values
+                  .map((t) => DropdownMenuItem(
+                        child: Text(t.toString().split('.').last.toUpperCase()),
+                        value: t,
+                      ))
+                  .toList(),
+              onChanged: (value) => setState(() => tag = value!),
             ),
           ],
-        );
-      },
+        ),
+        actions: [
+          TextButton(
+            child: const Text('Cancel'),
+            onPressed: () => Navigator.pop(context),
+          ),
+          TextButton(
+            child: const Text('Add'),
+            onPressed: () {
+              if (title.isNotEmpty) {
+                setState(() => todos.add(TodoItem(
+                    title: title,
+                    dueDate: dueDate,
+                    priority: priority,
+                    tag: tag)));
+                Navigator.pop(context);
+              }
+            },
+          ),
+        ],
+      ),
     );
+
+    dueDateController.clear();
+    priorityController.clear();
+    tagController.clear();
+  }
+
+  void completeTask(int index) {
+    setState(() => todos[index].isDone = !todos[index].isDone);
   }
 
   void deleteTask(int index) {
-    setState(() {
-      todos.removeAt(index);
-    });
-  }
-
-  Widget searchBox() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 5),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(40),
-      ),
-      child: TextField(
-        controller: searchController,
-        onChanged: (value) {
-          searcher(value);
-        },
-        decoration: const InputDecoration(
-            contentPadding: EdgeInsets.all(0),
-            prefixIcon: Icon(
-              Icons.search,
-              color: Colors.black,
-              size: 20,
-            ),
-            prefixIconConstraints: BoxConstraints(
-              maxHeight: 20,
-              minWidth: 25,
-            ),
-            border: InputBorder.none,
-            hintText: 'Search',
-            hintStyle: TextStyle(color: Colors.grey)),
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Task?'),
+        content: Text('Are you sure you want to delete ${todos[index].title}?'),
+        actions: [
+          TextButton(
+            child: const Text('Cancel'),
+            onPressed: () => Navigator.pop(context),
+          ),
+          TextButton(
+            child: const Text('Delete'),
+            onPressed: () {
+              setState(() => todos.removeAt(index));
+              Navigator.pop(context);
+            },
+          ),
+        ],
       ),
     );
   }
 
-  void searcher(String searchingword) {
-    List<TodoItem> results = [];
-    if (searchingword.isEmpty) {
-      results = List<TodoItem>.from(todos);
-    } else {
-      results = todos
-          .where((todo) =>
-              todo.title.toLowerCase().contains(searchingword.toLowerCase()))
-          .toList();
-      setState(() {
-        foundtodos = results;
-      });
-    }
+  Widget buildTodoItem(TodoItem todo) {
+    return ListTile(
+      leading: Checkbox(
+        value: todo.isDone,
+        onChanged: (value) => completeTask(todos.indexOf(todo)),
+      ),
+      title: Text(todo.title),
+      subtitle: Text(
+        ' ${todo.priorityText} - ${todo.tagText}',
+        style: const TextStyle(color: Colors.grey),
+      ),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          IconButton(
+            icon: const Icon(Icons.edit),
+            onPressed: () => editTask(context, todo),
+          ),
+          IconButton(
+            icon: const Icon(Icons.delete),
+            onPressed: () => deleteTask(todos.indexOf(todo)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void editTask(BuildContext context, TodoItem todo) async {
+    TextEditingController textController =
+        TextEditingController(text: todo.title);
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Edit Task'),
+        content: TextField(
+          // initialValue: todos[index].title,
+          onChanged: (newTitle) =>
+              setState(() => todos[index].title = newTitle),
+        ),
+        actions: [
+          TextButton(
+            child: const Text('Cancel'),
+            onPressed: () => Navigator.pop(context),
+          ),
+          TextButton(
+            child: const Text('Save'),
+            onPressed: () {
+              setState(() => todos[index] = TodoItem(
+                  title: textController.text,
+                  isDone: todos[index].isDone,
+                  index: todos[index].index));
+              Navigator.pop(context);
+            },
+          ),
+        ],
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color.fromARGB(255, 150, 95, 75),
       appBar: AppBar(
         elevation: 0,
         title:
             Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-          const Icon(
-            Icons.menu,
-            size: 30,
+          IconButton(
+            icon: const Icon(Icons.menu),
+            onPressed: () => {
+              setState(() {
+                appBarColor = const Color.fromARGB(255, 179, 7, 241);
+              })
+            },
           ),
-          SizedBox(
-            height: 40,
-            width: 40,
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(40),
-              child: Image.asset('assets/IMan.jpg'),
+          Stack(children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(20),
+              child: Container(
+                width: 40,
+                height: 40,
+                color: Colors.grey,
+                child: const Image(
+                  image: AssetImage('assets/IMan.jpg'),
+                  fit: BoxFit.cover,
+                ),
+              ),
             ),
-          )
+            Positioned(
+                right: 0,
+                top: 0,
+                child: Container(
+                  width: 12,
+                  height: 12,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(width: 2, color: Colors.white),
+                  ),
+                )),
+          ]),
         ]),
       ),
       body: Column(
         children: [
-          const Text('All of my To-Dos',
-              style: TextStyle(
-                  fontSize: 30,
-                  fontWeight: FontWeight.w500,
-                  color: Color.fromARGB(255, 246, 194, 135))),
-          searchBox(),
-          Expanded(
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(20),
-              child: ListView.builder(
-                itemCount: todos.length,
-                itemBuilder: (BuildContext context, int index) {
-                  return ClipRRect(
-                    borderRadius: BorderRadius.circular(20),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          vertical: 5, horizontal: 20),
-                      margin: const EdgeInsets.symmetric(vertical: 10),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(40),
-                      ),
-                      child: Dismissible(
-                        key: Key(todos[index].title),
-                        background: Container(
-                          color: const Color.fromARGB(255, 88, 52, 2),
-                          alignment: Alignment.centerRight,
-                          padding: const EdgeInsetsDirectional.all(10.0),
-                          child: const Icon(Icons.delete,
-                              color: Color.fromARGB(255, 46, 25, 12)),
-                        ),
-                        onDismissed: (direction) {
-                          deleteTask(index);
-                          print('Task Deleted');
-                        },
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 20, vertical: 3),
-                          margin: const EdgeInsets.only(bottom: 10, top: 10),
-                          color: Colors.white,
-                          child: CheckboxListTile(
-                            title: Text(
-                              todos[index].title,
-                              style: TextStyle(
-                                decoration: todos[index].isDone
-                                    ? TextDecoration.lineThrough
-                                    : null,
-                              ),
-                            ),
-                            value: todos[index].isDone,
-                            onChanged: (bool? value) {
-                              setState(() {
-                                todos[index].isDone = value ?? false;
-                              });
-                              // ignore: unused_label
-                              onTap:
-                              () {
-                                print('Clicked on a Todo task');
-                              };
-                            },
-                          ),
-                        ),
+          const Text('All Todos',
+              style: TextStyle(fontSize: 30, fontWeight: FontWeight.w500)),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8.0),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: searchController,
+                    onChanged: (value) => filterTodos(value, null, null, null),
+                    decoration: const InputDecoration(
+                      hintText: 'Search',
+                      prefixIcon: Icon(Icons.search),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.all(Radius.circular(15.0)),
+                        borderSide: BorderSide.none,
                       ),
                     ),
-                  );
-                },
-              ),
+                  ),
+                ),
+                ElevatedButton(
+                  child: const Text('Filter'),
+                  onPressed: () => showModalBottomSheet(
+                    context: context,
+                    builder: (context) => FilterBottomSheet(
+                      onFilter: (dueDate, priority, tag) => filterTodos(
+                        searchController.text,
+                        dueDate,
+                        priority as Priority?,
+                        tag as Tag?,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 10),
+          Expanded(
+            child: ListView.builder(
+              itemCount: filteredTodos.length,
+              itemBuilder: (context, index) =>
+                  buildTodoItem(filteredTodos[index]),
             ),
           ),
         ],
