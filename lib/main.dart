@@ -8,8 +8,8 @@ import 'package:todo/todos_list.dart';
 
 void main() async {
   await Hive.initFlutter();
+  await Hive.openBox('Todobox');
   Hive.registerAdapter(todoslistAdapter());
-  await Hive.openBox<todoslist>('todos');
   runApp(const MyApp());
 }
 

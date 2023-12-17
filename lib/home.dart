@@ -1,72 +1,15 @@
-// ignore_for_file: sort_child_properties_last, library_private_types_in_public_api, duplicate_import, avoid_print, constant_identifier_names, unused_import, non_constant_identifier_names, unused_element, unused_label, unnecessary_null_comparison, unused_local_variable, body_might_complete_normally_nullable, prefer_for_elements_to_map_fromiterable, use_build_context_synchronously
+// ignore_for_file: sort_child_properties_last, library_private_types_in_public_api, duplicate_import, avoid_print, constant_identifier_names, unused_import, non_constant_identifier_names, unused_element, unused_label, unnecessary_null_comparison, unused_local_variable, body_might_complete_normally_nullable, prefer_for_elements_to_map_fromiterable, use_build_context_synchronously, unnecessary_import
 
 import 'package:flutter/material.dart';
 import 'package:datetime_picker_formfield/datetime_picker_formfield.dart';
 import 'package:hive/hive.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import 'package:intl/intl.dart';
+import 'package:todo/data/database.dart';
 import 'package:todo/filter.dart';
 import 'package:todo/todos_list.dart';
 import 'filter.dart';
 import 'package:todo/main.dart';
-
-enum Priority { high, medium, low }
-
-Priority parsePrio(String constvalue) {
-  switch (constvalue.toLowerCase()) {
-    case 'low':
-      return Priority.low;
-    case 'medium':
-      return Priority.medium;
-    case 'high':
-      return Priority.high;
-    default:
-      throw ArgumentError('Invalid priority value: $constvalue');
-  }
-}
-
-enum Tag {
-  home,
-  work,
-  school,
-  personal,
-}
-
-Tag parseTag(String value) {
-  switch (value.toLowerCase()) {
-    case 'work':
-      return Tag.work;
-    case 'personal':
-      return Tag.personal;
-    case 'school':
-      return Tag.school;
-    case 'home':
-      return Tag.home;
-    default:
-      throw ArgumentError('Invalid tag value: $value');
-  }
-}
-
-class TodoItem {
-  String title;
-  int index;
-  DateTime? dueDate;
-  Priority? priority;
-  Tag? tag;
-  bool isDone;
-
-  TodoItem({
-    required this.title,
-    //required this.index,
-    this.dueDate,
-    this.priority = Priority.medium,
-    this.tag = Tag.personal,
-    this.isDone = false,
-    this.index = 0,
-  });
-
-  String get priorityText => priority.toString().split('.').last.toUpperCase();
-  String get tagText => tag.toString().split('.').last.toUpperCase();
-}
 
 class MyHomePage extends StatefulWidget {
   const MyHomePage({super.key});
@@ -76,14 +19,18 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  late Box<todoslist> todoBox;
+  List<todoslist> tasks = [];
 
-  List<TodoItem> todos = [];
+  final mybox = Hive.box('Todobox');
+
+  List<TodoItemdb> todos = [];
   TextEditingController searchController = TextEditingController();
-  List<TodoItem> filteredTodos = [];
+  List<TodoItemdb> filteredTodos = [];
   TextEditingController dueDateController = TextEditingController();
   TextEditingController priorityController = TextEditingController();
   TextEditingController tagController = TextEditingController();
+
+  TodoItemdb tdb = TodoItemdb(title: '');
 
   Color currentColor = const Color.fromARGB(255, 148, 207, 255);
   Color sectionColor = const Color.fromARGB(255, 148, 207, 255);
@@ -91,15 +38,7 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   void initState() {
     super.initState();
-    todoBox = Hive.box<todoslist>('todos');
-    todos = todoBox.values.map((todo) {
-      return TodoItem(
-        title: todo.title,
-        dueDate: todo.dueDate,
-        priority: parsePrio(todo.priority),
-        tag: parseTag(todo.tag),
-      );
-    }).toList();
+    tdb.openTodoBox();
     filteredTodos = todos;
   }
 
@@ -135,12 +74,6 @@ class _MyHomePageState extends State<MyHomePage> {
     });
   }
 
-  /*@override
-  void initState() {
-    filteredTodos = todos;
-    super.initState();
-  }*/
-
   bool isSearchOpen = false;
   void toggleSearch() {
     setState(() {
@@ -166,7 +99,7 @@ class _MyHomePageState extends State<MyHomePage> {
     });
   }
 
-  void editTask(BuildContext context, TodoItem todo) async {
+  void editTask(BuildContext context, TodoItemdb todo) async {
     TextEditingController titleController =
         TextEditingController(text: todo.title);
     TextEditingController dueDateController =
@@ -241,6 +174,7 @@ class _MyHomePageState extends State<MyHomePage> {
                 todo.dueDate = DateTime.parse(dueDateController.text);
                 todo.priority = parsePrio(priorityController.text);
                 todo.tag = parseTag(tagController.text);
+                tdb.updatingdb();
                 Navigator.pop(context);
               });
             },
@@ -340,11 +274,12 @@ class _MyHomePageState extends State<MyHomePage> {
             onPressed: () {
               if (title.isNotEmpty) {
                 setState(() {
-                  todos.add(TodoItem(
+                  todos.add(TodoItemdb(
                       title: title,
                       dueDate: dueDate,
                       priority: priority,
                       tag: tag));
+                  tdb.updatingdb();
                   Navigator.pop(context);
                 });
               }
@@ -361,6 +296,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
   void completeTask(int index) {
     setState(() => todos[index].isDone = !todos[index].isDone);
+    tdb.updatingdb();
   }
 
   void deleteTask(int index) {
@@ -378,6 +314,7 @@ class _MyHomePageState extends State<MyHomePage> {
             child: const Text('Delete'),
             onPressed: () {
               setState(() => todos.removeAt(index));
+              tdb.updatingdb();
               Navigator.pop(context);
             },
           ),
@@ -386,7 +323,7 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 
-  Widget buildTodoItem(TodoItem todo) {
+  Widget buildTodoItem(TodoItemdb todo) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: ClipRRect(
