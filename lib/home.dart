@@ -19,13 +19,13 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  List<todoslist> tasks = [];
+  //List<todoslist> tasks = [];
 
   final mybox = Hive.box('Todobox');
 
   List<TodoItemdb> todos = [];
-  TextEditingController searchController = TextEditingController();
   List<TodoItemdb> filteredTodos = [];
+  TextEditingController searchController = TextEditingController();
   TextEditingController dueDateController = TextEditingController();
   TextEditingController priorityController = TextEditingController();
   TextEditingController tagController = TextEditingController();
@@ -38,7 +38,9 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   void initState() {
     super.initState();
+    tdb.printdefault();
     tdb.openTodoBox();
+    todos = tdb.getTodos();
     filteredTodos = todos;
   }
 
@@ -51,6 +53,10 @@ class _MyHomePageState extends State<MyHomePage> {
     setState(() {
       sectionColor = newColor;
     });
+  }
+
+  void saveTodos() {
+    tdb.updatingdb(todos);
   }
 
   void filterTodosWithOption(FilterOptions option, {Tag? selectedTag}) {
@@ -170,18 +176,24 @@ class _MyHomePageState extends State<MyHomePage> {
             child: const Text('Save'),
             onPressed: () {
               setState(() {
+                Navigator.pop(context);
                 todo.title = titleController.text;
                 todo.dueDate = DateTime.parse(dueDateController.text);
                 todo.priority = parsePrio(priorityController.text);
                 todo.tag = parseTag(tagController.text);
-                tdb.updatingdb();
-                Navigator.pop(context);
+                tdb.updatingdb(todo);
               });
             },
           ),
         ],
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
+    saveTodos();
   }
 
   void addTask() async {
@@ -279,7 +291,11 @@ class _MyHomePageState extends State<MyHomePage> {
                       dueDate: dueDate,
                       priority: priority,
                       tag: tag));
-                  tdb.updatingdb();
+                  tdb.updatingdb(TodoItemdb(
+                      title: title,
+                      dueDate: dueDate,
+                      priority: priority,
+                      tag: tag));
                   Navigator.pop(context);
                 });
               }
@@ -288,7 +304,6 @@ class _MyHomePageState extends State<MyHomePage> {
         ],
       ),
     );
-
     dueDateController.clear();
     priorityController.clear();
     tagController.clear();
@@ -296,7 +311,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
   void completeTask(int index) {
     setState(() => todos[index].isDone = !todos[index].isDone);
-    tdb.updatingdb();
+    tdb.updatingdb(todos);
   }
 
   void deleteTask(int index) {
@@ -314,7 +329,7 @@ class _MyHomePageState extends State<MyHomePage> {
             child: const Text('Delete'),
             onPressed: () {
               setState(() => todos.removeAt(index));
-              tdb.updatingdb();
+              tdb.updatingdb(todos);
               Navigator.pop(context);
             },
           ),
@@ -368,9 +383,7 @@ class _MyHomePageState extends State<MyHomePage> {
         title: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            // Title widget or text
-            const SizedBox(
-                width: 20), // Optional spacing between title and image
+            const SizedBox(width: 20),
             Expanded(
               child: Align(
                 alignment: Alignment.centerRight,

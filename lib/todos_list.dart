@@ -21,11 +21,10 @@ class todoslist {
   @HiveField(4)
   late String tag;
 
-  todoslist({
-    required this.title,
-    required this.isCompleted,
-    this.dueDate,
-    //this.priority = 'medium',
-    //this.tag = 'personal'
-  });
+  todoslist(
+      {required this.title,
+      required this.isCompleted,
+      this.dueDate,
+      this.priority = 'medium',
+      this.tag = 'personal'});
 }

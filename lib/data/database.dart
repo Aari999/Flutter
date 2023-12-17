@@ -1,3 +1,5 @@
+// ignore_for_file: unnecessary_null_comparison
+
 import 'package:hive_flutter/hive_flutter.dart';
 
 enum Priority { high, medium, low }
@@ -60,7 +62,15 @@ class TodoItemdb {
 
   List<TodoItemdb> todos = [];
 
-  final mybox = Hive.box('Todobox');
+  var mybox = Hive.box('Todobox');
+
+  void printdefault() {
+    TodoItemdb(
+        title: 'My demo for the app',
+        priority: Priority.high,
+        isDone: false,
+        tag: Tag.work);
+  }
 
   void openTodoBox() async {
     await Hive.initFlutter();
@@ -71,7 +81,24 @@ class TodoItemdb {
     todos = mybox.get("TODOS");
   }
 
-  void updatingdb() {
+  void updatingdb(todos) {
     mybox.put("TODOS", todos);
+  }
+
+  List<TodoItemdb> getTodos() {
+    mybox = Hive.box('Todobox');
+    var todos = mybox.values.toList();
+    if (todos != null) {
+      return todos.cast<TodoItemdb>();
+    } else {
+      // ignore: avoid_print
+      print('Warning: Unable to retrieve valid todos from Hive.');
+      return [];
+    }
+  }
+
+  Future<void> saveTodos(List<TodoItemdb> todos) async {
+    mybox = Hive.box('Todobox');
+    await mybox.put('todos', todos);
   }
 }
