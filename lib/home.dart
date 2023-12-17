@@ -1,4 +1,4 @@
-// ignore_for_file: sort_child_properties_last, library_private_types_in_public_api, duplicate_import, avoid_print, constant_identifier_names, unused_import, non_constant_identifier_names, unused_element, unused_label, unnecessary_null_comparison, unused_local_variable, body_might_complete_normally_nullable, prefer_for_elements_to_map_fromiterable, use_build_context_synchronously, unnecessary_import
+// ignore_for_file: sort_child_properties_last, library_private_types_in_public_api, duplicate_import, avoid_print, constant_identifier_names, unused_import, non_constant_identifier_names, unused_element, unused_label, unnecessary_null_comparison, unused_local_variable, body_might_complete_normally_nullable, prefer_for_elements_to_map_fromiterable, use_build_context_synchronously, unnecessary_import, unused_field
 
 import 'package:flutter/material.dart';
 import 'package:datetime_picker_formfield/datetime_picker_formfield.dart';
@@ -7,7 +7,6 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:intl/intl.dart';
 import 'package:todo/data/database.dart';
 import 'package:todo/filter.dart';
-import 'package:todo/todos_list.dart';
 import 'filter.dart';
 import 'package:todo/main.dart';
 
@@ -30,10 +29,12 @@ class _MyHomePageState extends State<MyHomePage> {
   TextEditingController priorityController = TextEditingController();
   TextEditingController tagController = TextEditingController();
 
-  TodoItemdb tdb = TodoItemdb(title: '');
+  TodoItemdb tdb = TodoItemdb(title: ' ');
 
   Color currentColor = const Color.fromARGB(255, 148, 207, 255);
   Color sectionColor = const Color.fromARGB(255, 148, 207, 255);
+
+  static get param0 => null;
 
   @override
   void initState() {
@@ -177,11 +178,15 @@ class _MyHomePageState extends State<MyHomePage> {
             onPressed: () {
               setState(() {
                 Navigator.pop(context);
-                todo.title = titleController.text;
-                todo.dueDate = DateTime.parse(dueDateController.text);
-                todo.priority = parsePrio(priorityController.text);
-                todo.tag = parseTag(tagController.text);
-                tdb.updatingdb(todo);
+                TodoItemdb editedversion = TodoItemdb(
+                  title: todo.title = titleController.text,
+                  dueDate: todo.dueDate =
+                      DateTime.parse(dueDateController.text),
+                  priority: todo.priority = parsePrio(priorityController.text),
+                  tag: todo.tag = parseTag(tagController.text),
+                );
+                tdb.todos.add(editedversion);
+                tdb.updatingdb([todo]);
               });
             },
           ),
@@ -286,16 +291,15 @@ class _MyHomePageState extends State<MyHomePage> {
             onPressed: () {
               if (title.isNotEmpty) {
                 setState(() {
-                  todos.add(TodoItemdb(
-                      title: title,
-                      dueDate: dueDate,
-                      priority: priority,
-                      tag: tag));
-                  tdb.updatingdb(TodoItemdb(
-                      title: title,
-                      dueDate: dueDate,
-                      priority: priority,
-                      tag: tag));
+                  TodoItemdb newTodo = TodoItemdb(
+                    //title = title,
+                    dueDate: dueDate,
+                    priority: priority,
+                    tag: tag,
+                    title: title,
+                  );
+                  tdb.todos.add(newTodo);
+                  tdb.updatingdb(todos);
                   Navigator.pop(context);
                 });
               }

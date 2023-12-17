@@ -57,12 +57,12 @@ class TodoItemdb {
     this.index = 0,
   });
 
+  var mybox = Hive.box('Todobox');
+
   String get priorityText => priority.toString().split('.').last.toUpperCase();
   String get tagText => tag.toString().split('.').last.toUpperCase();
 
   List<TodoItemdb> todos = [];
-
-  var mybox = Hive.box('Todobox');
 
   void printdefault() {
     TodoItemdb(
@@ -77,22 +77,22 @@ class TodoItemdb {
     loadTodos();
   }
 
-  void loadTodos() {
-    todos = mybox.get("TODOS");
+  List loadTodos() {
+    if (mybox.isNotEmpty) {
+      return mybox.values.toList();
+    } else {
+      return [];
+    }
   }
 
-  void updatingdb(todos) {
+  void updatingdb(List<TodoItemdb> todos) {
     mybox.put("TODOS", todos);
   }
 
   List<TodoItemdb> getTodos() {
-    mybox = Hive.box('Todobox');
-    var todos = mybox.values.toList();
-    if (todos != null) {
-      return todos.cast<TodoItemdb>();
+    if (mybox.isNotEmpty) {
+      return mybox.values.toList().cast<TodoItemdb>();
     } else {
-      // ignore: avoid_print
-      print('Warning: Unable to retrieve valid todos from Hive.');
       return [];
     }
   }
@@ -100,5 +100,12 @@ class TodoItemdb {
   Future<void> saveTodos(List<TodoItemdb> todos) async {
     mybox = Hive.box('Todobox');
     await mybox.put('todos', todos);
+  }
+
+  List<TodoItemdb>? fetchTodosFromDatabase() {
+    var box = Hive.box('Todobox');
+    List<TodoItemdb>? todos = box.get('todos');
+
+    return todos as List<TodoItemdb>;
   }
 }

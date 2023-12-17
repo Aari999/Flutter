@@ -4,11 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:todo/home.dart';
 import 'package:todo/filter.dart';
 import 'package:hive_flutter/hive_flutter.dart';
-import 'package:todo/todos_list.dart';
 
 void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
   await Hive.initFlutter();
-  await Hive.openBox('Todobox');
+  var box = await Hive.openBox('Todobox');
   runApp(const MyApp());
 }
 
@@ -29,14 +29,8 @@ class _MyAppState extends State<MyApp> {
 
   final ThemeData kNightTheme = ThemeData(
     brightness: Brightness.dark,
-    hintColor: const Color.fromARGB(255, 126, 162, 128),
+    hintColor: Color.fromARGB(255, 175, 255, 179),
   );
-
-  @override
-  void dispose() {
-    Hive.close();
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {
