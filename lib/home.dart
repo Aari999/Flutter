@@ -127,7 +127,7 @@ class _MyHomePageState extends State<MyHomePage> {
   Priority selectedPriority = Priority.high;
   Tag selectedTag = Tag.personal;
 
-  get index => null;
+ // get index => null;
 
   void updateSectionColor(Color newColor) {
     setState(() {
