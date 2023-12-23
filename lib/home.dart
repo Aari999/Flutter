@@ -141,6 +141,7 @@ class _MyHomePageState extends State<MyHomePage> {
       return {
         'title': item.title,
         'dueDate': item.dueDate?.toIso8601String(),
+        'index': item.index,
         'priority': item.priority.toString(),
         'tag': item.tag.toString(),
         'isDone': item.isDone,
@@ -160,7 +161,7 @@ class _MyHomePageState extends State<MyHomePage> {
       List<Map<String, dynamic>> todoList =
           decoded.cast<Map<String, dynamic>>();
 
-      if (index >= 0 && index < todoList.length) {
+      if (index >= 1 && index <= todoList.length) {
         todoList.removeAt(index);
         String updatedSerialized = json.encode(todoList);
         await prefs.setString('todoItems', updatedSerialized);
