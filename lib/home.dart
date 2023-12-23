@@ -1,14 +1,74 @@
 // ignore_for_file: sort_child_properties_last, library_private_types_in_public_api, duplicate_import, avoid_print, constant_identifier_names, unused_import, non_constant_identifier_names, unused_element, unused_label, unnecessary_null_comparison, unused_local_variable, body_might_complete_normally_nullable, prefer_for_elements_to_map_fromiterable, use_build_context_synchronously, unnecessary_import, unused_field
 
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:datetime_picker_formfield/datetime_picker_formfield.dart';
 import 'package:hive/hive.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:todo/data/database.dart';
 import 'package:todo/filter.dart';
 import 'filter.dart';
 import 'package:todo/main.dart';
+
+enum Priority { high, medium, low }
+
+Priority parsePrio(String constvalue) {
+  switch (constvalue.toLowerCase()) {
+    case 'low' || 'priority.low':
+      return Priority.low;
+    case 'medium' || 'priority.medium':
+      return Priority.medium;
+    case 'high' || 'priority.high':
+      return Priority.high;
+    default:
+      throw ArgumentError('Invalid priority value: $constvalue');
+  }
+}
+
+enum Tag {
+  home,
+  work,
+  school,
+  personal,
+}
+
+Tag parseTag(String value) {
+  switch (value.toLowerCase()) {
+    case 'work' || 'tag.work':
+      return Tag.work;
+    case 'personal' || 'tag.personal':
+      return Tag.personal;
+    case 'school' || 'tag.school':
+      return Tag.school;
+    case 'home' || 'tag.home':
+      return Tag.home;
+    default:
+      throw ArgumentError('Invalid tag value: $value');
+  }
+}
+
+class TodoItemdb {
+  String title;
+  int index;
+  DateTime? dueDate;
+  Priority? priority;
+  Tag? tag;
+  bool isDone;
+
+  TodoItemdb({
+    required this.title,
+    this.dueDate,
+    this.priority = Priority.medium,
+    this.tag = Tag.personal,
+    this.isDone = false,
+    this.index = 0,
+  });
+  String get priorityText => priority.toString().split('.').last.toUpperCase();
+  String get tagText => tag.toString().split('.').last.toUpperCase();
+}
 
 class MyHomePage extends StatefulWidget {
   const MyHomePage({super.key});
@@ -18,31 +78,50 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  //List<todoslist> tasks = [];
-
-  final mybox = Hive.box('Todobox');
-
-  List<TodoItemdb> todos = [];
+  //List<TodoItemdb> todos = [];
+  List<TodoItemdb> todoList = [];
   List<TodoItemdb> filteredTodos = [];
   TextEditingController searchController = TextEditingController();
   TextEditingController dueDateController = TextEditingController();
   TextEditingController priorityController = TextEditingController();
   TextEditingController tagController = TextEditingController();
 
-  TodoItemdb tdb = TodoItemdb(title: ' ');
-
   Color currentColor = const Color.fromARGB(255, 148, 207, 255);
   Color sectionColor = const Color.fromARGB(255, 148, 207, 255);
 
-  static get param0 => null;
+  Future<List<TodoItemdb>> getSavedTodoItems() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    String? serialized = prefs.getString('todoItems');
+    if (serialized != null) {
+      List<dynamic> decoded = json.decode(serialized);
+      return decoded.map((item) {
+        return TodoItemdb(
+          title: item['title'],
+          dueDate: DateTime.parse(item['dueDate']),
+          priority: parsePrio(item['priority']),
+          tag: parseTag(item['tag']),
+        );
+      }).toList();
+    }
+    return []; // Return empty list if there aint no todos
+  }
+
+  Future<void> refreshTodos() async {
+    List<TodoItemdb> retrievedItems = await getSavedTodoItems();
+    setState(() {
+      filteredTodos = retrievedItems;
+    });
+  }
 
   @override
   void initState() {
     super.initState();
-    tdb.printdefault();
-    tdb.openTodoBox();
-    todos = tdb.getTodos();
-    filteredTodos = todos;
+    getSavedTodoItems().then((retrievedItems) {
+      setState(() {
+        filteredTodos = retrievedItems;
+        refreshTodos();
+      });
+    });
   }
 
   Priority selectedPriority = Priority.high;
@@ -56,26 +135,58 @@ class _MyHomePageState extends State<MyHomePage> {
     });
   }
 
-  void saveTodos() {
-    tdb.updatingdb(todos);
+  void saveTodoItems(List<TodoItemdb> todoList) async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    List<Map<String, dynamic>> serializedList = todoList.map((item) {
+      return {
+        'title': item.title,
+        'dueDate': item.dueDate?.toIso8601String(),
+        'priority': item.priority.toString(),
+        'tag': item.tag.toString(),
+        'isDone': item.isDone,
+      };
+    }).toList();
+
+    String serialized = json.encode(serializedList);
+    await prefs.setString('todoItems', serialized);
+  }
+
+  Future deleteTodoItemfrommemory(int index) async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    String? serialized = prefs.getString('todoItems');
+
+    if (serialized != null) {
+      List<dynamic> decoded = json.decode(serialized);
+      List<Map<String, dynamic>> todoList =
+          decoded.cast<Map<String, dynamic>>();
+
+      if (index >= 0 && index < todoList.length) {
+        todoList.removeAt(index);
+        String updatedSerialized = json.encode(todoList);
+        await prefs.setString('todoItems', updatedSerialized);
+      }
+    }
   }
 
   void filterTodosWithOption(FilterOptions option, {Tag? selectedTag}) {
     setState(() {
       if (option == FilterOptions.all) {
-        filteredTodos = todos;
+        filteredTodos = todoList;
       } else if (option == FilterOptions.byDate) {
-        filteredTodos = todos
-            .where((todo) =>
-                todo.dueDate != null && todo.dueDate!.isAfter(DateTime.now()))
+        filteredTodos = todoList
+            .where((todoList) =>
+                todoList.dueDate != null &&
+                todoList.dueDate!.isAfter(DateTime.now()))
             .toList();
       } else if (option == FilterOptions.byPriority) {
-        filteredTodos =
-            todos.where((todo) => todo.priority == selectedPriority).toList();
+        filteredTodos = todoList
+            .where((todoList) => todoList.priority == selectedPriority)
+            .toList();
       } else if (option == FilterOptions.byTag) {
         if (selectedTag != null) {
-          filteredTodos =
-              todos.where((todo) => todo.tag == selectedTag).toList();
+          filteredTodos = todoList
+              .where((todoList) => todoList.tag == selectedTag)
+              .toList();
         }
       }
     });
@@ -93,28 +204,28 @@ class _MyHomePageState extends State<MyHomePage> {
     print(
         'Filtering with search: $search, dueDate: $dueDate, priority: $priority, tag: $tag');
     setState(() {
-      filteredTodos = todos.where((todo) {
+      filteredTodos = todoList.where((todoList) {
         final lowerCaseSearch = search.toLowerCase();
-        final lowerCaseTitle = todo.title.toLowerCase();
-
+        final lowerCaseTitle = todoList.title.toLowerCase();
         return lowerCaseTitle.contains(lowerCaseSearch) &&
             (dueDate == null ||
-                (todo.dueDate != null && todo.dueDate!.isBefore(dueDate))) &&
-            (priority == null || todo.priority == priority) &&
-            (tag == null || todo.tag == tag);
+                (todoList.dueDate != null &&
+                    todoList.dueDate!.isBefore(dueDate))) &&
+            (priority == null || todoList.priority == priority) &&
+            (tag == null || todoList.tag == tag);
       }).toList();
     });
   }
 
-  void editTask(BuildContext context, TodoItemdb todo) async {
+  void editTask(BuildContext context, todoList) async {
     TextEditingController titleController =
-        TextEditingController(text: todo.title);
+        TextEditingController(text: todoList.title);
     TextEditingController dueDateController =
-        TextEditingController(text: todo.dueDate?.toString() ?? '');
+        TextEditingController(text: todoList.dueDate?.toString() ?? '');
     TextEditingController priorityController =
-        TextEditingController(text: todo.priority?.toString() ?? '');
+        TextEditingController(text: todoList.priority?.toString() ?? '');
     TextEditingController tagController =
-        TextEditingController(text: todo.tag?.toString() ?? '');
+        TextEditingController(text: todoList.tag?.toString() ?? '');
 
     showDialog(
       context: context,
@@ -125,7 +236,8 @@ class _MyHomePageState extends State<MyHomePage> {
           children: [
             TextField(
               controller: titleController,
-              onChanged: (newTitle) => setState(() => todo.title = newTitle),
+              onChanged: (newTitle) =>
+                  setState(() => todoList.title = newTitle),
               decoration: const InputDecoration(labelText: 'Title'),
             ),
             TextField(
@@ -133,9 +245,9 @@ class _MyHomePageState extends State<MyHomePage> {
               onChanged: (newDueDate) {
                 setState(() {
                   if (newDueDate.isNotEmpty) {
-                    todo.dueDate = DateTime.parse(newDueDate);
+                    todoList.dueDate = DateTime.parse(newDueDate);
                   } else {
-                    todo.dueDate = todo.dueDate;
+                    todoList.dueDate = todoList.dueDate;
                   }
                 });
               },
@@ -146,9 +258,9 @@ class _MyHomePageState extends State<MyHomePage> {
               onChanged: (newPriority) {
                 setState(() {
                   if (newPriority.isNotEmpty) {
-                    todo.priority = parsePrio(newPriority);
+                    todoList.priority = parsePrio(newPriority);
                   } else {
-                    todo.priority = todo.priority!;
+                    todoList.priority = parsePrio(todoList.priority! as String);
                   }
                 });
               },
@@ -159,9 +271,9 @@ class _MyHomePageState extends State<MyHomePage> {
                 onChanged: (newTag) {
                   setState(() {
                     if (newTag.isNotEmpty) {
-                      todo.tag = parseTag(newTag);
+                      todoList.tag = parseTag(newTag);
                     } else {
-                      todo.tag = todo.tag!;
+                      todoList.tag = parseTag(todoList.tag! as String);
                     }
                   });
                 },
@@ -178,27 +290,22 @@ class _MyHomePageState extends State<MyHomePage> {
             onPressed: () {
               setState(() {
                 Navigator.pop(context);
-                TodoItemdb editedversion = TodoItemdb(
-                  title: todo.title = titleController.text,
-                  dueDate: todo.dueDate =
-                      DateTime.parse(dueDateController.text),
-                  priority: todo.priority = parsePrio(priorityController.text),
-                  tag: todo.tag = parseTag(tagController.text),
-                );
-                tdb.todos.add(editedversion);
-                tdb.updatingdb([todo]);
+                title:
+                todoList.title = titleController.text;
+                dueDate:
+                todoList.dueDate = DateTime.parse(dueDateController.text);
+                priority:
+                todoList.priority = parsePrio(priorityController.text);
+                tag:
+                todoList.tag = parseTag(tagController.text);
+                // isDone: false,
+                saveTodoItems(todoList);
               });
             },
           ),
         ],
       ),
     );
-  }
-
-  @override
-  void dispose() {
-    super.dispose();
-    saveTodos();
   }
 
   void addTask() async {
@@ -288,18 +395,19 @@ class _MyHomePageState extends State<MyHomePage> {
           ),
           TextButton(
             child: const Text('Add'),
-            onPressed: () {
+            onPressed: () async {
               if (title.isNotEmpty) {
+                TodoItemdb newItem = TodoItemdb(
+                  title: title,
+                  dueDate: dueDate,
+                  priority: priority,
+                  tag: tag,
+                  // isDone: false,
+                );
+                todoList.add(newItem);
+                saveTodoItems(todoList);
                 setState(() {
-                  TodoItemdb newTodo = TodoItemdb(
-                    //title = title,
-                    dueDate: dueDate,
-                    priority: priority,
-                    tag: tag,
-                    title: title,
-                  );
-                  tdb.todos.add(newTodo);
-                  tdb.updatingdb(todos);
+                  filteredTodos = todoList;
                   Navigator.pop(context);
                 });
               }
@@ -314,16 +422,22 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   void completeTask(int index) {
-    setState(() => todos[index].isDone = !todos[index].isDone);
-    tdb.updatingdb(todos);
+    setState(() {
+      //todos[index].isDone = !todos[index].isDone;
+      todoList[index].isDone = !todoList[index].isDone;
+      filteredTodos = List.from(todoList);
+      //filteredTodos = List.from(todoList.where((todoList) => !todoList.isDone));
+    });
   }
 
-  void deleteTask(int index) {
+  void deleteTask(int index) async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete Task?'),
-        content: Text('Are you sure you want to delete ${todos[index].title}?'),
+        content:
+            Text('Are you sure you want to delete ${todoList[index].title}?'),
         actions: [
           TextButton(
             child: const Text('Cancel'),
@@ -332,8 +446,12 @@ class _MyHomePageState extends State<MyHomePage> {
           TextButton(
             child: const Text('Delete'),
             onPressed: () {
-              setState(() => todos.removeAt(index));
-              tdb.updatingdb(todos);
+              setState(() {
+                //todos.removeAt(index);
+                todoList.removeAt(index);
+                deleteTodoItemfrommemory(index);
+              });
+              saveTodoItems(todoList);
               Navigator.pop(context);
             },
           ),
@@ -342,7 +460,7 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 
-  Widget buildTodoItem(TodoItemdb todo) {
+  Widget buildTodoItem(todoList) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: ClipRRect(
@@ -351,12 +469,12 @@ class _MyHomePageState extends State<MyHomePage> {
           color: Colors.white,
           child: ListTile(
             leading: Checkbox(
-              value: todo.isDone,
-              onChanged: (value) => completeTask(todos.indexOf(todo)),
+              value: todoList.isDone,
+              onChanged: (value) => completeTask(todoList.indexOf(todoList)),
             ),
-            title: Text(todo.title),
+            title: Text(todoList.title),
             subtitle: Text(
-              ' ${todo.priorityText} - ${todo.tagText}',
+              ' ${todoList.priorityText} - ${todoList.tagText}',
               style: const TextStyle(color: Colors.grey),
             ),
             trailing: Row(
@@ -364,11 +482,11 @@ class _MyHomePageState extends State<MyHomePage> {
               children: [
                 IconButton(
                   icon: const Icon(Icons.edit),
-                  onPressed: () => editTask(context, todo),
+                  onPressed: () => editTask(context, todoList),
                 ),
                 IconButton(
                   icon: const Icon(Icons.delete),
-                  onPressed: () => deleteTask(todos.indexOf(todo)),
+                  onPressed: () => deleteTask(todoList.indexOf(todoList)),
                 ),
               ],
             ),

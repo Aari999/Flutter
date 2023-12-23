@@ -1,6 +1,6 @@
 // ignore_for_file: unnecessary_null_comparison
 
-import 'package:hive_flutter/hive_flutter.dart';
+//import 'package:hive_flutter/hive_flutter.dart';
 
 enum Priority { high, medium, low }
 
@@ -49,7 +49,6 @@ class TodoItemdb {
 
   TodoItemdb({
     required this.title,
-    //required this.index,
     this.dueDate,
     this.priority = Priority.medium,
     this.tag = Tag.personal,
@@ -57,12 +56,12 @@ class TodoItemdb {
     this.index = 0,
   });
 
-  var mybox = Hive.box('Todobox');
+  //
 
   String get priorityText => priority.toString().split('.').last.toUpperCase();
   String get tagText => tag.toString().split('.').last.toUpperCase();
 
-  List<TodoItemdb> todos = [];
+  //List<TodoItemdb> todoList = [];
 
   void printdefault() {
     TodoItemdb(
@@ -72,7 +71,7 @@ class TodoItemdb {
         tag: Tag.work);
   }
 
-  void openTodoBox() async {
+  /*void openTodoBox() async {
     await Hive.initFlutter();
     loadTodos();
   }
@@ -97,6 +96,15 @@ class TodoItemdb {
     }
   }
 
+  List<TodoItemdb> fetchthetodosfromdb() {
+    if (todos.isEmpty) {
+      return [];
+    } else {
+      // ignore: unnecessary_cast
+      return todos as List<TodoItemdb>;
+    }
+  }
+
   Future<void> saveTodos(List<TodoItemdb> todos) async {
     mybox = Hive.box('Todobox');
     await mybox.put('todos', todos);
@@ -107,5 +115,5 @@ class TodoItemdb {
     List<TodoItemdb>? todos = box.get('todos');
 
     return todos as List<TodoItemdb>;
-  }
+  }*/
 }

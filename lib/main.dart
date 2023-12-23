@@ -5,10 +5,10 @@ import 'package:todo/home.dart';
 import 'package:todo/filter.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
-void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  await Hive.initFlutter();
-  var box = await Hive.openBox('Todobox');
+void main() {
+  //WidgetsFlutterBinding.ensureInitialized();
+  // Hive.initFlutter();
+  // var box =  Hive.openBox('Todobox');
   runApp(const MyApp());
 }
 
