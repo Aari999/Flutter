@@ -470,7 +470,7 @@ class _MyHomePageState extends State<MyHomePage> {
           child: ListTile(
             leading: Checkbox(
               value: todoList.isDone,
-              onChanged: (value) => completeTask(todoList.indexOf(todoList)),
+              onChanged: (value) => completeTask(todoList.index),
             ),
             title: Text(todoList.title),
             subtitle: Text(
@@ -486,7 +486,7 @@ class _MyHomePageState extends State<MyHomePage> {
                 ),
                 IconButton(
                   icon: const Icon(Icons.delete),
-                  onPressed: () => deleteTask(todoList.indexOf(todoList)),
+                  onPressed: () => deleteTask(todoList.index),
                 ),
               ],
             ),
