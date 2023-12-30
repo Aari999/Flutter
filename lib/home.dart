@@ -53,14 +53,14 @@ Tag parseTag(String value) {
 class TodoItemdb {
   String title;
   int index;
-  DateTime? dueDate;
+  DateTime dueDate;
   Priority? priority;
   Tag? tag;
   bool isDone;
 
   TodoItemdb({
     required this.title,
-    this.dueDate,
+    required this.dueDate,
     this.priority = Priority.medium,
     this.tag = Tag.personal,
     this.isDone = false,
@@ -77,7 +77,9 @@ class MyHomePage extends StatefulWidget {
   _MyHomePageState createState() => _MyHomePageState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
+class _MyHomePageState extends State<MyHomePage>
+    with SingleTickerProviderStateMixin {
+  late TabController tabControlling;
   //List<TodoItemdb> todos = [];
   List<TodoItemdb> todoList = [];
   List<TodoItemdb> filteredTodos = [];
@@ -103,7 +105,7 @@ class _MyHomePageState extends State<MyHomePage> {
         );
       }).toList();
     }
-    return []; // Return empty list if there aint no todos
+    return [];
   }
 
   Future<void> refreshTodos() async {
@@ -116,11 +118,35 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   void initState() {
     super.initState();
+    tabControlling = TabController(length: 4, vsync: this);
+    tabControlling.addListener(_handleTabSelection);
     getSavedTodoItems().then((retrievedItems) {
       setState(() {
         filteredTodos = retrievedItems;
         refreshTodos();
       });
+    });
+  }
+
+  @override
+  void dispose() {
+    tabControlling.dispose();
+    super.dispose();
+  }
+
+  void _handleTabSelection() {
+    setState(() {
+      if (tabControlling.indexIsChanging) {
+        if (tabControlling.index == 0) {
+          filterTodosWithOption(FilterOptions.all);
+        } else if (tabControlling.index == 1) {
+          filterTodosWithOption(FilterOptions.byPriority);
+        } else if (tabControlling.index == 2) {
+          filterTodosWithOption(FilterOptions.byTag);
+        } else if (tabControlling.index == 3) {
+          filterTodosWithOption(FilterOptions.byDate);
+        }
+      }
     });
   }
 
@@ -140,7 +166,7 @@ class _MyHomePageState extends State<MyHomePage> {
     List<Map<String, dynamic>> serializedList = todoList.map((item) {
       return {
         'title': item.title,
-        'dueDate': item.dueDate?.toIso8601String(),
+        'dueDate': item.dueDate.toIso8601String(),
         'index': item.index,
         'priority': item.priority.toString(),
         'tag': item.tag.toString(),
@@ -161,7 +187,7 @@ class _MyHomePageState extends State<MyHomePage> {
       List<Map<String, dynamic>> todoList =
           decoded.cast<Map<String, dynamic>>();
 
-      if (index >= 1 && index <= todoList.length) {
+      if (index >= 0 && index <= todoList.length) {
         todoList.removeAt(index);
         String updatedSerialized = json.encode(todoList);
         await prefs.setString('todoItems', updatedSerialized);
@@ -169,25 +195,32 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
-  void filterTodosWithOption(FilterOptions option, {Tag? selectedTag}) {
+  void filterTodosWithOption(FilterOptions option,
+      {Tag? selectedTag, Priority? selectedPriority}) {
     setState(() {
       if (option == FilterOptions.all) {
         filteredTodos = todoList;
       } else if (option == FilterOptions.byDate) {
         filteredTodos = todoList
-            .where((todoList) =>
-                todoList.dueDate != null &&
-                todoList.dueDate!.isAfter(DateTime.now()))
+            .where((todo) =>
+                todo.dueDate != null && todo.dueDate.isAfter(DateTime.now()))
             .toList();
       } else if (option == FilterOptions.byPriority) {
-        filteredTodos = todoList
-            .where((todoList) => todoList.priority == selectedPriority)
-            .toList();
+        if (selectedPriority != null) {
+          filteredTodos = todoList
+              .where((todo) => todo.priority == selectedPriority)
+              .toList();
+        } else {
+          filteredTodos =
+              todoList.where((todo) => todo.priority == Priority.high).toList();
+        }
       } else if (option == FilterOptions.byTag) {
         if (selectedTag != null) {
-          filteredTodos = todoList
-              .where((todoList) => todoList.tag == selectedTag)
-              .toList();
+          filteredTodos =
+              todoList.where((todo) => todo.tag == selectedTag).toList();
+        } else {
+          filteredTodos =
+              todoList.where((todo) => todo.tag == Tag.work).toList();
         }
       }
     });
@@ -211,22 +244,22 @@ class _MyHomePageState extends State<MyHomePage> {
         return lowerCaseTitle.contains(lowerCaseSearch) &&
             (dueDate == null ||
                 (todoList.dueDate != null &&
-                    todoList.dueDate!.isBefore(dueDate))) &&
+                    todoList.dueDate.isBefore(dueDate))) &&
             (priority == null || todoList.priority == priority) &&
             (tag == null || todoList.tag == tag);
       }).toList();
     });
   }
 
-  void editTask(BuildContext context, todoList) async {
+  void editTask(BuildContext context, TodoItemdb todoItem) async {
     TextEditingController titleController =
-        TextEditingController(text: todoList.title);
+        TextEditingController(text: todoItem.title);
     TextEditingController dueDateController =
-        TextEditingController(text: todoList.dueDate?.toString() ?? '');
+        TextEditingController(text: todoItem.dueDate.toString());
     TextEditingController priorityController =
-        TextEditingController(text: todoList.priority?.toString() ?? '');
+        TextEditingController(text: todoItem.priority?.toString() ?? '');
     TextEditingController tagController =
-        TextEditingController(text: todoList.tag?.toString() ?? '');
+        TextEditingController(text: todoItem.tag?.toString() ?? '');
 
     showDialog(
       context: context,
@@ -238,7 +271,7 @@ class _MyHomePageState extends State<MyHomePage> {
             TextField(
               controller: titleController,
               onChanged: (newTitle) =>
-                  setState(() => todoList.title = newTitle),
+                  setState(() => todoItem.title = newTitle),
               decoration: const InputDecoration(labelText: 'Title'),
             ),
             TextField(
@@ -246,9 +279,9 @@ class _MyHomePageState extends State<MyHomePage> {
               onChanged: (newDueDate) {
                 setState(() {
                   if (newDueDate.isNotEmpty) {
-                    todoList.dueDate = DateTime.parse(newDueDate);
+                    todoItem.dueDate = DateTime.parse(newDueDate);
                   } else {
-                    todoList.dueDate = todoList.dueDate;
+                    todoItem.dueDate = todoItem.dueDate;
                   }
                 });
               },
@@ -259,9 +292,9 @@ class _MyHomePageState extends State<MyHomePage> {
               onChanged: (newPriority) {
                 setState(() {
                   if (newPriority.isNotEmpty) {
-                    todoList.priority = parsePrio(newPriority);
+                    todoItem.priority = parsePrio(newPriority);
                   } else {
-                    todoList.priority = parsePrio(todoList.priority! as String);
+                    todoItem.priority = parsePrio(todoItem.priority! as String);
                   }
                 });
               },
@@ -272,9 +305,9 @@ class _MyHomePageState extends State<MyHomePage> {
                 onChanged: (newTag) {
                   setState(() {
                     if (newTag.isNotEmpty) {
-                      todoList.tag = parseTag(newTag);
+                      todoItem.tag = parseTag(newTag);
                     } else {
-                      todoList.tag = parseTag(todoList.tag! as String);
+                      todoItem.tag = parseTag(todoItem.tag! as String);
                     }
                   });
                 },
@@ -292,15 +325,15 @@ class _MyHomePageState extends State<MyHomePage> {
               setState(() {
                 Navigator.pop(context);
                 title:
-                todoList.title = titleController.text;
+                todoItem.title = titleController.text;
                 dueDate:
-                todoList.dueDate = DateTime.parse(dueDateController.text);
+                todoItem.dueDate = DateTime.parse(dueDateController.text);
                 priority:
-                todoList.priority = parsePrio(priorityController.text);
+                todoItem.priority = parsePrio(priorityController.text);
                 tag:
-                todoList.tag = parseTag(tagController.text);
-                // isDone: false,
+                todoItem.tag = parseTag(tagController.text);
                 saveTodoItems(todoList);
+                saveTodoItems(filteredTodos);
               });
             },
           ),
@@ -333,14 +366,18 @@ class _MyHomePageState extends State<MyHomePage> {
               onChanged: (value) => setState(() => dueDate = value),
               onShowPicker:
                   (BuildContext context, DateTime? currentValue) async {
-                final pickedDate = await showDatePicker(
-                  context: context,
-                  initialDate: currentValue ?? DateTime.now(),
-                  firstDate: DateTime(2000),
-                  lastDate: DateTime(2100),
-                );
-                //kessete and kalssete
-                return pickedDate ?? DateTime.now();
+                DateTime currentDate = DateTime.now();
+                DateTime? pickedDate;
+                do {
+                  pickedDate = await showDatePicker(
+                    context: context,
+                    initialDate: currentValue ?? currentDate,
+                    firstDate: currentDate,
+                    lastDate: DateTime(2100),
+                  );
+                } while (
+                    pickedDate == null || pickedDate.isBefore(currentDate));
+                return pickedDate;
               },
             ),
             DropdownButtonFormField<Priority>(
@@ -395,25 +432,44 @@ class _MyHomePageState extends State<MyHomePage> {
             onPressed: () => Navigator.pop(context),
           ),
           TextButton(
-            child: const Text('Add'),
-            onPressed: () async {
-              if (title.isNotEmpty) {
-                TodoItemdb newItem = TodoItemdb(
-                  title: title,
-                  dueDate: dueDate,
-                  priority: priority,
-                  tag: tag,
-                  // isDone: false,
-                );
-                todoList.add(newItem);
-                saveTodoItems(todoList);
-                setState(() {
-                  filteredTodos = todoList;
-                  Navigator.pop(context);
-                });
-              }
-            },
-          ),
+              child: const Text('Add'),
+              onPressed: () async {
+                if (title.isNotEmpty && dueDate != null) {
+                  DateTime currentDate = DateTime.now();
+                  if (dueDate!.isAfter(currentDate)) {
+                    DateTime selectedDueDate = dueDate ?? currentDate;
+                    TodoItemdb newItem = TodoItemdb(
+                      title: title,
+                      dueDate: selectedDueDate,
+                      priority: priority,
+                      tag: tag,
+                    );
+                    todoList.add(newItem);
+                    saveTodoItems(todoList);
+                    setState(() {
+                      filteredTodos = todoList;
+                      Navigator.pop(context);
+                    });
+                  } else {
+                    showDialog(
+                      context: context,
+                      builder: (context) => AlertDialog(
+                        title: const Text('Invalid Due Date'),
+                        content: const Text(
+                            'Please select a due date after the current date.'),
+                        actions: [
+                          TextButton(
+                            child: const Text('OK'),
+                            onPressed: () {
+                              Navigator.pop(context);
+                            },
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+                }
+              }),
         ],
       ),
     );
@@ -423,22 +479,21 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   void completeTask(int index) {
-    setState(() {
-      //todos[index].isDone = !todos[index].isDone;
-      todoList[index].isDone = !todoList[index].isDone;
-      filteredTodos = List.from(todoList);
-      //filteredTodos = List.from(todoList.where((todoList) => !todoList.isDone));
-    });
+    if (index >= 0 && index < todoList.length) {
+      setState(() {
+        todoList[index].isDone = !todoList[index].isDone;
+        filteredTodos = List.from(todoList);
+      });
+    }
   }
 
   void deleteTask(int index) async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete Task?'),
-        content:
-            Text('Are you sure you want to delete ${todoList[index].title}?'),
+        content: Text(
+            'Are you sure you want to delete ${filteredTodos.isNotEmpty ? filteredTodos[index].title : ''}?'),
         actions: [
           TextButton(
             child: const Text('Cancel'),
@@ -446,13 +501,21 @@ class _MyHomePageState extends State<MyHomePage> {
           ),
           TextButton(
             child: const Text('Delete'),
-            onPressed: () {
+            onPressed: () async {
               setState(() {
-                //todos.removeAt(index);
-                todoList.removeAt(index);
-                deleteTodoItemfrommemory(index);
+                if (filteredTodos.isNotEmpty &&
+                    index >= 0 &&
+                    index < filteredTodos.length) {
+                  String taskTitle = filteredTodos[index].title;
+                  filteredTodos.removeAt(index);
+                  saveTodoItems(filteredTodos);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Deleted task: $taskTitle'),
+                    ),
+                  );
+                }
               });
-              saveTodoItems(todoList);
               Navigator.pop(context);
             },
           ),
@@ -461,7 +524,7 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 
-  Widget buildTodoItem(todoList) {
+  Widget buildTodoItem(int index, TodoItemdb todo) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: ClipRRect(
@@ -470,12 +533,17 @@ class _MyHomePageState extends State<MyHomePage> {
           color: Colors.white,
           child: ListTile(
             leading: Checkbox(
-              value: todoList.isDone,
-              onChanged: (value) => completeTask(todoList.index),
-            ),
-            title: Text(todoList.title),
+                value: todo.isDone,
+                onChanged: (value) {
+                  setState(() {
+                    todo.isDone = value!;
+                    todoList[todoList.indexOf(todo)] = todo;
+                    filteredTodos = List.from(todoList);
+                  });
+                }),
+            title: Text(todo.title),
             subtitle: Text(
-              ' ${todoList.priorityText} - ${todoList.tagText}',
+              ' ${todo.priorityText} - ${todo.tagText}',
               style: const TextStyle(color: Colors.grey),
             ),
             trailing: Row(
@@ -483,11 +551,13 @@ class _MyHomePageState extends State<MyHomePage> {
               children: [
                 IconButton(
                   icon: const Icon(Icons.edit),
-                  onPressed: () => editTask(context, todoList),
+                  onPressed: () => editTask(context, todo),
                 ),
                 IconButton(
                   icon: const Icon(Icons.delete),
-                  onPressed: () => deleteTask(todoList.index),
+                  onPressed: () {
+                    deleteTask(index);
+                  },
                 ),
               ],
             ),
@@ -506,7 +576,11 @@ class _MyHomePageState extends State<MyHomePage> {
         title: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const SizedBox(width: 20),
+            const SizedBox(width: 20, height: 8),
+            const Text(
+              'Todo App',
+              style: TextStyle(fontSize: 30, fontWeight: FontWeight.w500),
+            ),
             Expanded(
               child: Align(
                 alignment: Alignment.centerRight,
@@ -517,7 +591,7 @@ class _MyHomePageState extends State<MyHomePage> {
                     height: 40,
                     color: Colors.grey,
                     child: const Image(
-                      image: AssetImage('assets/IMan.jpg'),
+                      image: AssetImage('assets/taskpic.jpeg'),
                       fit: BoxFit.cover,
                     ),
                   ),
@@ -560,10 +634,6 @@ class _MyHomePageState extends State<MyHomePage> {
         color: sectionColor,
         child: Column(
           children: [
-            const Text(
-              'All Todos',
-              style: TextStyle(fontSize: 30, fontWeight: FontWeight.w500),
-            ),
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 8.0),
               child: Row(
@@ -590,46 +660,60 @@ class _MyHomePageState extends State<MyHomePage> {
                       ),
                     ),
                   ),
-                  SizedBox(
-                    width: 120,
-                    child: DropdownButtonHideUnderline(
-                      child: DropdownButton<FilterOptions>(
-                        onChanged: (value) {
-                          if (value != null) {
-                            filterTodosWithOption(value);
-                          }
-                        },
-                        items: FilterOptions.values.map((option) {
-                          return DropdownMenuItem<FilterOptions>(
-                            value: option,
-                            child: Row(
-                              children: [
-                                Text(option.title),
-                                const SizedBox(width: 8.0),
-                                Icon(option.icon),
-                              ],
-                            ),
-                          );
-                        }).toList(),
-                        icon: const Icon(Icons.filter_list),
-                        iconSize: 24,
-                        elevation: 16,
-                        style: const TextStyle(color: Colors.black),
-                        isExpanded: true,
-                        hint: const Text('Filter',
-                            style: TextStyle(color: Colors.black)),
-                      ),
-                    ),
-                  ),
                 ],
               ),
+            ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                ElevatedButton(
+                  onPressed: () => filterTodosWithOption(FilterOptions.all),
+                  child: const Text('All'),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    setState(() {
+                      tabControlling.index = 1;
+                      filterTodosWithOption(
+                        FilterOptions.byPriority,
+                        selectedTag: selectedTag,
+                      );
+                    });
+                  },
+                  child: const Text('Priority'),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    setState(() {
+                      tabControlling.index = 2;
+                      filterTodosWithOption(
+                        FilterOptions.byTag,
+                        selectedPriority: selectedPriority,
+                      );
+                    });
+                  },
+                  child: const Text('Tag'),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    setState(() {
+                      tabControlling.index = 3;
+                      filterTodosWithOption(
+                        FilterOptions.byDate,
+                        selectedTag: selectedTag,
+                      );
+                    });
+                  },
+                  child: const Text('Due Date'),
+                ),
+              ],
             ),
             const SizedBox(height: 10),
             Expanded(
               child: ListView.builder(
                 itemCount: filteredTodos.length,
                 itemBuilder: (context, index) =>
-                    buildTodoItem(filteredTodos[index]),
+                    buildTodoItem(index, filteredTodos[index]),
               ),
             ),
           ],
